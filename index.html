@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Seva Sthiti · prototype</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* Tokens sampled from Figma section 766:3043 (quality os changes). */
+:root{
+  --page:#F1EDF7; --sheet:#FAF9FC; --surface:#FFFFFF; --header:#443152;
+  --muted:#E8E4F0; --subtle:#F1EDF7;
+  --ink:#161021; --ink-a:#170F21; --ink-2:#5C5570; --ink-3:#665E75; --ink-4:#8C8799; --hint:#A7A1B2;
+  --nonaction:#898296; --ondark:#FAF9FC; --headerIcon:#E8E4F0; --tileInk:#403B4D;
+  --pos:#008043; --pos-2:#008042; --posTrend:#21AB73; --neg:#D92130;
+  --warnInk:#372902; --warnOrange:#FF8000; --brand:#D9008D;
+  --heroWarn:#FFF7D9; --heroWarnIc:#FFE08A; --heroOk:#EDFCF4; --heroOkIc:#B8E6CE;
+  --heroCrit:#FFEFF0; --heroCritIc:#FFC7CB;
+  --pillCrit:#FFE5E7; --pillOk:#E8FAED;
+  --barMetP:#AFCFB0; --barMissP:#FFD3D7; --barMetN:#D9EDD9; --barMissN:#FFE5E7; --barNone:#F1EDF7;
+  --tileNeutral:#F1EDF7; --tilePos:#E8FAED; --tileNeg:#FFD3D7;
+  --r:16px; --rs:12px; --rp:999px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:"Noto Sans Devanagari","Noto Sans",system-ui,sans-serif;background:#2B2B33;color:var(--ink);
+  min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:28px 16px;gap:26px;flex-wrap:wrap}
+
+/* Controls live outside the device, as requested. */
+.panel{width:250px;color:#CFCAD8;font:400 12px/1.55 "Noto Sans",sans-serif;flex:0 0 auto}
+.panel h1{font:700 16px/1.3 "Noto Sans";color:#fff;margin-bottom:14px}
+.panel .grp{margin-bottom:18px}
+.panel .lbl{font:600 10px/1 "Noto Sans";letter-spacing:.09em;text-transform:uppercase;color:#7E7890;margin-bottom:7px}
+.seg{display:flex;flex-direction:column;gap:5px}
+.seg button{width:100%;text-align:left;border:1px solid #3D3947;background:#33303C;color:#CFCAD8;
+  border-radius:9px;padding:8px 11px;font:600 12px/1.3 "Noto Sans Devanagari";cursor:pointer;transition:.15s}
+.seg button:hover{border-color:#565064}
+.seg button.on{background:#fff;color:#161021;border-color:#fff}
+.seg.row{flex-direction:row}
+.seg.row button{text-align:center}
+.panel .hint{font:400 11px/1.5 "Noto Sans";color:#7E7890;margin-top:8px}
+
+/* 360×720 viewport at 1:1 with Figma — no scaling, so 16dp is 16px. */
+.device{width:370px;height:730px;border-radius:26px;background:#000;padding:5px;box-shadow:0 18px 50px rgba(0,0,0,.5);flex:0 0 auto}
+.screen{position:relative;width:360px;height:720px;border-radius:22px;overflow:hidden;background:var(--page)}
+.canvas{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--page)}
+
+.topbar{flex:0 0 auto;display:flex;align-items:center;gap:12px;padding:16px;background:var(--header)}
+.topbar .ttl{flex:1;font:700 18px/26px "Noto Sans Devanagari";color:var(--ondark)}
+.ic{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.ic svg{width:100%;height:100%;display:block}
+.tap{cursor:pointer}
+.scroll{flex:1;overflow-y:auto;overflow-x:hidden}
+.scroll::-webkit-scrollbar{width:0}
+.body{display:flex;flex-direction:column;gap:24px;padding:16px}
+
+.card{background:var(--sheet);border-radius:var(--r)}
+.pad{padding:16px}
+.divider{height:1px;background:var(--muted);border:0}
+.sec-head{display:flex;align-items:center;gap:8px}
+.sec-head .t{flex:1;font:700 16px/24px "Noto Sans Devanagari"}
+.sec-head .m{font:400 12px/16px "Noto Sans Devanagari";color:var(--ink-3)}
+.sec-sub{font:400 12px/18px "Noto Sans Devanagari";color:var(--ink-3);margin-top:2px}
+
+.hero{border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px}
+.hero.warn{background:var(--heroWarn);box-shadow:inset 0 0 0 1px #E6C18D}
+.hero.ok{background:var(--heroOk);box-shadow:inset 0 0 0 1px #9AD1B6}
+.hero.crit{background:var(--heroCrit);box-shadow:inset 0 0 0 1px #F2A8AD}
+.hero .cycle{font:600 12px/16px "Noto Sans Devanagari"}
+.hero .head{display:flex;gap:12px;align-items:flex-start}
+.hero .texts{flex:1;display:flex;flex-direction:column;gap:2px}
+.hero .h1{font:700 16px/24px "Noto Sans Devanagari"}
+.hero .h2{font:400 14px/20px "Noto Sans Devanagari";color:var(--ink-2)}
+.bubble{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font:700 12px/1 "Noto Sans";flex:0 0 auto}
+.bubble.warn{background:var(--heroWarnIc);color:var(--warnInk)}
+.bubble.crit{background:var(--heroCritIc);color:var(--neg)}
+.bubble.ok{background:var(--heroOkIc);color:var(--pos)}
+.bubble.mut{background:var(--muted);color:var(--nonaction)}
+.bubble.mut .ic{width:12px;height:12px}
+.bubble.ok .ic,.bubble.crit .ic{width:13px;height:13px}
+.bubble.sm{width:18px;height:18px}
+.bubble.sm.fail{background:#FFEFF0;box-shadow:inset 0 0 0 1px #FFB7BD;color:var(--neg)}
+.bubble.sm.pass{background:var(--muted);box-shadow:inset 0 0 0 1px #C8C6CC;color:var(--nonaction)}
+.bubble.sm .ic{width:12px;height:12px}
+.qbtn{width:14px;height:14px;border-radius:50%;background:var(--muted);color:var(--ink-2);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto}
+/* The glyph is injected as a bare <svg>, so it needs its own size rule. */
+.qbtn svg{width:10px;height:10px;display:block}
+.qbtn.q18{width:18px;height:18px}
+.qbtn.lg{width:24px;height:24px} .qbtn.lg svg{width:12px;height:12px}
+.qbtn:active{background:#D9D3E6}
+
+.mrow{display:flex;flex-direction:column;gap:2px}
+.mrow .l1{display:flex;align-items:center;gap:6px}
+.mrow .lbl{font:400 14px/20px "Noto Sans Devanagari"}
+.mrow .val{font:700 14px/20px "Noto Sans Devanagari"}
+.mrow .l2{display:flex;align-items:center;gap:6px}
+.brow .l2{gap:8px}
+.mrow .lnk{flex:1;font:600 12px/16px "Noto Sans Devanagari";color:var(--ink-2);
+  text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.mrow .tgt{font:400 12px/16px "Noto Sans Devanagari";color:var(--ink-3)}
+.spacer{flex:1}
+.pos{color:var(--pos)} .neg{color:var(--neg)} .ink{color:var(--ink)} .muted{color:var(--hint)}
+
+.dom{background:var(--sheet);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:0}
+.dom .dhead{display:flex;align-items:center;gap:8px;cursor:pointer}
+.dom .dname{font:700 16px/24px "Noto Sans Devanagari"}
+.dom .dcount{font:600 14px/20px "Noto Sans Devanagari"}
+/* The exported keyboard_arrow_down came from an already-rotated instance,
+   so its glyph points up; collapsed rotates it back down. */
+.chev{width:24px;height:24px;color:var(--nonaction);transition:transform .22s ease;transform:rotate(180deg)}
+.chev.up{transform:rotate(0deg)}
+.collapse{display:grid;grid-template-rows:0fr;transition:grid-template-rows .26s ease}
+.collapse.open{grid-template-rows:1fr}
+.collapse > .inner{overflow:hidden;min-height:0}
+.stack{display:flex;flex-direction:column;gap:12px}
+
+.banner{border-radius:var(--rs);padding:12px;display:flex;align-items:center;gap:8px;background:var(--sheet);box-shadow:inset 0 0 0 1px #D7D3E0}
+.banner.crit{background:var(--pillCrit)}
+.banner .bt{flex:1;font:600 14px/20px "Noto Sans Devanagari"}
+.badge{border-radius:4px;padding:4px 8px;font:600 12px/16px "Noto Sans Devanagari"}
+.badge.neutral{background:var(--subtle);color:var(--ink-3)}
+.badge.pos{background:var(--pillOk);color:var(--pos)}
+.badge.crit{background:var(--pillCrit);color:var(--neg)}
+
+.footcard{background:var(--sheet);border-radius:var(--r);padding:16px;display:flex;align-items:center;gap:12px;cursor:pointer}
+.footcard .circ{width:36px;height:36px;border-radius:50%;background:var(--muted);
+  display:flex;align-items:center;justify-content:center;color:var(--nonaction);flex:0 0 auto}
+.footcard .circ .ic{width:20px;height:20px}
+.footcard .circ .ic svg{width:100%;height:100%}
+.footcard .ft{flex:1;font:400 14px/20px "Noto Sans Devanagari"}
+.prevBody{padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--heroWarn);border-radius:var(--rp);padding:4px 12px;align-self:flex-start}
+.chip .cb{width:20px;height:20px;border-radius:50%;background:var(--heroWarnIc);color:var(--warnOrange);
+  display:flex;align-items:center;justify-content:center;font:700 12px/1 "Noto Sans"}
+.chip .ct{font:500 16px/24px "Noto Sans Devanagari"}
+.vlist{display:flex;flex-direction:column;gap:10px}
+.vrow{display:flex;align-items:center;gap:8px}
+.vrow .bul{width:4px;height:4px;border-radius:50%;background:var(--hint);flex:0 0 auto;margin-right:2px}
+.vrow .vl{flex:1;font:400 14px/20px "Noto Sans Devanagari"}
+.vrow .vv{font:600 14px/20px "Noto Sans Devanagari"}
+.subhead{font:600 14px/20px "Noto Sans Devanagari"}
+.note{display:flex;gap:8px;font:400 14px/20px "Noto Sans Devanagari";color:var(--ink-3)}
+.eduIntro{font:400 12px/18px "Noto Sans Devanagari";color:#494551}
+.eduCard{background:var(--surface);border-radius:var(--rs);padding:12px}
+.eduCard .et{font:700 13px/18px "Noto Sans Devanagari";color:#1D1A22}
+.eduCard .es{font:400 11px/16px "Noto Sans Devanagari";color:var(--hint);margin-top:2px}
+.eduFoot{font:400 11px/16px "Noto Sans Devanagari";color:#494551}
+
+/* ── Drilldown bottom sheet (Figma 766:3043 — fill #FAF9FC, top radius 24) ── */
+.scrim{position:absolute;inset:0;background:rgba(22,16,33,.45);opacity:0;pointer-events:none;transition:opacity .24s;z-index:5}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:6;background:var(--sheet);
+  border-radius:24px 24px 0 0;transform:translateY(101%);
+  transition:transform .32s cubic-bezier(.32,.72,0,1);max-height:92%;display:flex;flex-direction:column}
+.sheet.on{transform:translateY(0)}
+.grab{width:32px;height:4px;border-radius:2px;background:#D7D3E0;margin:8px auto 0;flex:0 0 auto}
+.sheetBar{display:flex;align-items:center;gap:8px;padding:14px 16px 10px;flex:0 0 auto}
+.sheetBar .st{flex:1;font:700 16px/24px "Noto Sans Devanagari";color:var(--ink-a)}
+.sheetScroll{overflow-y:auto;overflow-x:hidden;padding-bottom:16px}
+.sheetScroll::-webkit-scrollbar{width:0}
+
+.dHead{display:flex;flex-direction:column;gap:8px;padding:6px 16px 0}
+.dHead .row{display:flex;align-items:center;gap:8px}
+.dHead .win{flex:1;font:400 12px/16px "Noto Sans Devanagari";color:var(--ink-3)}
+.dHead .tgt{font:400 12px/16px "Noto Sans Devanagari";color:var(--hint)}
+.bigRow{display:flex;align-items:flex-end;gap:8px}
+.big{font:700 32px/40px "Noto Sans";letter-spacing:-.5px}
+.trend{display:flex;align-items:center;gap:2px;font:600 14px/20px "Noto Sans Devanagari";padding-bottom:6px}
+.tri{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent}
+.tri.up{border-bottom:6px solid var(--posTrend)} .tri.dn{border-top:6px solid var(--neg)}
+.dBody{font:400 12px/18px "Noto Sans Devanagari";color:var(--ink-3)}
+.hr{height:1px;background:var(--muted);margin:16px}
+.chartHead{display:flex;align-items:center;gap:8px;padding:0 16px}
+.chartHead .ct{flex:1;font:600 14px/20px "Noto Sans Devanagari";color:var(--ink)}
+.chartWrap{margin-top:12px;padding:0 16px}
+.plotScroll{overflow-x:auto;overflow-y:hidden;padding-bottom:6px}
+.plotScroll::-webkit-scrollbar{height:4px}
+.plotScroll::-webkit-scrollbar-thumb{background:var(--muted);border-radius:2px}
+.plot{display:flex;gap:4px;align-items:flex-end;height:116px;width:max-content}
+.col{width:26px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:116px}
+.col .cv{font:400 9px/12px "Noto Sans";color:var(--ink-3);margin-bottom:2px}
+.bar{width:26px;border-radius:4px 4px 0 0}
+.axis{display:flex;gap:4px;width:max-content;margin-top:4px}
+.axis span{width:26px;text-align:center;font:400 9px/12px "Noto Sans";color:var(--hint)}
+.axis.mon span{color:var(--tileInk)}
+.legend{display:flex;flex-wrap:wrap;gap:10px;padding:12px 16px 0}
+.legend .li{display:flex;align-items:center;gap:4px;font:400 12px/16px "Noto Sans Devanagari";color:var(--ink-3)}
+.legend .sw{width:9px;height:9px;border-radius:2px}
+.legend .dash{width:12px;border-top:1px dashed var(--hint)}
+.tiles{display:flex;gap:8px;padding:0 16px;margin-top:12px}
+.tile{flex:1;border-radius:var(--rs);padding:12px 6px;text-align:center}
+.tile .tv{font:600 18px/24px "Noto Sans"}
+.tile .tl{font:400 10px/14px "Noto Sans Devanagari";color:var(--ink-3);margin-top:2px}
+.tile.neutral{background:var(--tileNeutral)} .tile.neutral .tv{color:var(--tileInk)}
+.tile.pos{background:var(--tilePos)} .tile.pos .tv{color:var(--pos-2)}
+.tile.neg{background:var(--tileNeg)} .tile.neg .tv{color:var(--neg)}
+.teamHead{display:flex;align-items:center;gap:8px;padding:0 16px;margin-bottom:12px}
+.teamHead .tt{flex:1;font:600 14px/20px "Noto Sans Devanagari";color:var(--ink)}
+.teamHead .tv{font:700 16px/24px "Noto Sans";color:var(--ink)}
+.teamList{display:flex;flex-direction:column;gap:8px;padding:0 16px 8px}
+.member{background:var(--surface);border-radius:var(--r);padding:12px}
+.mtop{display:flex;align-items:center;gap:12px}
+.av{width:36px;height:36px;border-radius:50%;background:var(--subtle);color:var(--pos-2);
+  display:flex;align-items:center;justify-content:center;font:600 14px/1 "Noto Sans";flex:0 0 auto}
+.mname{font:600 14px/20px "Noto Sans";color:var(--ink-a)}
+.mrole{font:400 11px/15px "Noto Sans";color:var(--ink-4)}
+.score{border-radius:var(--rp);padding:3px 10px;font:600 13px/18px "Noto Sans"}
+.score.ok{background:var(--pillOk);color:var(--pos-2)} .score.bad{background:var(--pillCrit);color:var(--neg)}
+.mstats{display:flex;margin-top:10px}
+.mstats.divided{border-top:1px solid var(--muted);padding-top:10px}
+.mstats .st{flex:1;text-align:center}
+.sv{display:block;font:600 14px/20px "Noto Sans"}
+.sl{display:block;font:400 10px/14px "Noto Sans Devanagari";color:var(--ink-4);margin-top:1px}
+.mcompact{display:flex;align-items:center;gap:12px}
+.mcompact .st{text-align:right;flex:0 0 auto}
+
+/* Help sheet — mirrors QualityEducationSheet in the app. */
+.hsheet{position:absolute;left:0;right:0;bottom:0;z-index:8;background:var(--surface);
+  border-radius:24px 24px 0 0;padding:8px 16px 24px;transform:translateY(101%);
+  transition:transform .3s cubic-bezier(.32,.72,0,1);max-height:76%;overflow-y:auto}
+.hsheet.on{transform:translateY(0)}
+.hgrab{width:32px;height:4px;border-radius:2px;background:#3C3745;margin:4px auto 18px}
+.hhead{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.hhead .ic{width:20px;height:20px;color:var(--brand);flex:0 0 auto}
+.hhead h3{font:700 16px/24px "Noto Sans Devanagari";color:var(--ink)}
+.bul-row{display:flex;align-items:flex-start;gap:8px;margin-top:12px}
+.bul-row:first-child{margin-top:0}
+.bul-row.sub{margin-left:16px;margin-top:4px}
+.bul-row .dot{font:400 16px/24px "Noto Sans";color:var(--ink-2);flex:0 0 auto}
+.bul-row .txt{flex:1;font:400 16px/24px "Noto Sans Devanagari";color:var(--ink-2)}
+.hscrim{position:absolute;inset:0;background:rgba(22,16,33,.45);opacity:0;pointer-events:none;transition:opacity .24s;z-index:7}
+.hscrim.on{opacity:1;pointer-events:auto}
+.hsheet p.sub{font:400 14px/22px "Noto Sans Devanagari";color:var(--ink-2);margin-bottom:14px}
+.tt{width:100%;border-collapse:separate;border-spacing:0;border-radius:var(--rs);overflow:hidden;border:1px solid var(--muted)}
+.tt th{background:var(--subtle);font:400 12px/16px "Noto Sans Devanagari";color:var(--ink-2);
+  text-align:left;padding:10px 8px;font-weight:400}
+.tt td{background:var(--surface);font:400 13px/18px "Noto Sans Devanagari";color:var(--ink);
+  padding:11px 8px;border-top:1px solid var(--muted)}
+.tt tr.cur td{background:#F6FDFA}
+.tpill{display:inline-block;border-radius:var(--rp);padding:3px 9px;font:600 12px/16px "Noto Sans Devanagari"}
+.tpill.pos{background:var(--pillOk);color:var(--pos)}
+.tpill.info{background:#F1E5FF;color:#6D17CE}
+.tpill.basic{background:#FFF2BF;color:var(--warnInk)}
+
+.cover{background:#FFE9A8;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:32px}
+.cover h2{font:700 26px/1.3 "Noto Sans";text-align:center}
+.cover button{background:#161021;color:#fff;border:0;border-radius:var(--rp);padding:14px 40px;font:700 17px/1 "Noto Sans";cursor:pointer}
+</style>
+</head>
+<body>
+
+<div class="panel">
+  <h1>Seva Sthiti</h1>
+  <div class="grp">
+    <div class="lbl">सेवा स्थिति</div>
+    <div class="seg" id="segHome"></div>
+  </div>
+  <div class="grp">
+    <div class="lbl">Drilldown · metric</div>
+    <div class="seg" id="segMetric"></div>
+  </div>
+  <div class="grp">
+    <div class="lbl">Drilldown · state</div>
+    <div class="seg row" id="segTone"></div>
+    <div class="hint">Opens as a bottom sheet, matching Figma 766:3043.</div>
+  </div>
+</div>
+
+<div class="device"><div class="screen" id="screen"></div></div>
+
+<script>
+const D = {"ICONS": {"arrow_back": "<svg viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M7.82499 13L12.725 17.9C12.925 18.1 13.0208 18.3333 13.0125 18.6C13.0042 18.8667 12.9 19.1 12.7 19.3C12.5 19.4833 12.2667 19.5792 12 19.5875C11.7333 19.5958 11.5 19.5 11.3 19.3L4.69999 12.7C4.59999 12.6 4.52915 12.4917 4.48749 12.375C4.44582 12.2583 4.42499 12.1333 4.42499 12C4.42499 11.8667 4.44582 11.7417 4.48749 11.625C4.52915 11.5083 4.59999 11.4 4.69999 11.3L11.3 4.7C11.4833 4.51667 11.7125 4.425 11.9875 4.425C12.2625 4.425 12.5 4.51667 12.7 4.7C12.9 4.9 13 5.1375 13 5.4125C13 5.6875 12.9 5.925 12.7 6.125L7.82499 11H19C19.2833 11 19.5208 11.0958 19.7125 11.2875C19.9042 11.4792 20 11.7167 20 12C20 12.2833 19.9042 12.5208 19.7125 12.7125C19.5208 12.9042 19.2833 13 19 13H7.82499Z\" fill=\"currentColor\"/></svg>", "help": "<svg viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M11.95 18C12.3 18 12.5958 17.8792 12.8375 17.6375C13.0792 17.3958 13.2 17.1 13.2 16.75C13.2 16.4 13.0792 16.1042 12.8375 15.8625C12.5958 15.6208 12.3 15.5 11.95 15.5C11.6 15.5 11.3042 15.6208 11.0625 15.8625C10.8208 16.1042 10.7 16.4 10.7 16.75C10.7 17.1 10.8208 17.3958 11.0625 17.6375C11.3042 17.8792 11.6 18 11.95 18ZM12 22C10.6167 22 9.31667 21.7375 8.1 21.2125C6.88333 20.6875 5.825 19.975 4.925 19.075C4.025 18.175 3.3125 17.1167 2.7875 15.9C2.2625 14.6833 2 13.3833 2 12C2 10.6167 2.2625 9.31667 2.7875 8.1C3.3125 6.88333 4.025 5.825 4.925 4.925C5.825 4.025 6.88333 3.3125 8.1 2.7875C9.31667 2.2625 10.6167 2 12 2C13.3833 2 14.6833 2.2625 15.9 2.7875C17.1167 3.3125 18.175 4.025 19.075 4.925C19.975 5.825 20.6875 6.88333 21.2125 8.1C21.7375 9.31667 22 10.6167 22 12C22 13.3833 21.7375 14.6833 21.2125 15.9C20.6875 17.1167 19.975 18.175 19.075 19.075C18.175 19.975 17.1167 20.6875 15.9 21.2125C14.6833 21.7375 13.3833 22 12 22ZM12.1 7.7C12.5167 7.7 12.8792 7.83333 13.1875 8.1C13.4958 8.36667 13.65 8.7 13.65 9.1C13.65 9.46667 13.5375 9.79167 13.3125 10.075C13.0875 10.3583 12.8333 10.625 12.55 10.875C12.1667 11.2083 11.8292 11.575 11.5375 11.975C11.2458 12.375 11.1 12.825 11.1 13.325C11.1 13.5583 11.1875 13.7542 11.3625 13.9125C11.5375 14.0708 11.7417 14.15 11.975 14.15C12.225 14.15 12.4375 14.0667 12.6125 13.9C12.7875 13.7333 12.9 13.525 12.95 13.275C13.0167 12.925 13.1667 12.6125 13.4 12.3375C13.6333 12.0625 13.8833 11.8 14.15 11.55C14.5333 11.1833 14.8625 10.7833 15.1375 10.35C15.4125 9.91667 15.55 9.43333 15.55 8.9C15.55 8.05 15.2042 7.35417 14.5125 6.8125C13.8208 6.27083 13.0167 6 12.1 6C11.4667 6 10.8625 6.13333 10.2875 6.4C9.7125 6.66667 9.275 7.075 8.975 7.625C8.85833 7.825 8.82083 8.0375 8.8625 8.2625C8.90417 8.4875 9.01667 8.65833 9.2 8.775C9.43333 8.90833 9.675 8.95 9.925 8.9C10.175 8.85 10.3833 8.70833 10.55 8.475C10.7333 8.225 10.9625 8.03333 11.2375 7.9C11.5125 7.76667 11.8 7.7 12.1 7.7Z\" fill=\"currentColor\"/></svg>", "question_mark": "<svg viewBox=\"0 0 10 10\" fill=\"none\"><path d=\"M6.08332 3.36458C6.08332 3.06597 5.98436 2.82639 5.78644 2.64583C5.58852 2.46528 5.32637 2.375 4.99998 2.375C4.79859 2.375 4.6163 2.4184 4.45311 2.50521C4.28991 2.59201 4.14929 2.71875 4.03123 2.88542C3.92012 3.04514 3.76908 3.13715 3.57811 3.16146C3.38714 3.18576 3.22221 3.13542 3.08332 3.01042C2.98609 2.92014 2.93227 2.80903 2.92186 2.67708C2.91144 2.54514 2.94443 2.42014 3.02082 2.30208C3.24304 1.96875 3.52602 1.71007 3.86977 1.52604C4.21352 1.34201 4.59026 1.25 4.99998 1.25C5.67359 1.25 6.22047 1.44097 6.64061 1.82292C7.06075 2.20486 7.27082 2.70486 7.27082 3.32292C7.27082 3.63542 7.20484 3.91667 7.0729 4.16667C6.94096 4.41667 6.6979 4.71181 6.34373 5.05208C6.08679 5.29514 5.91318 5.48437 5.8229 5.61979C5.73262 5.75521 5.67359 5.90972 5.64582 6.08333C5.61804 6.25 5.54686 6.38889 5.43227 6.5C5.31769 6.61111 5.18054 6.66667 5.02082 6.66667C4.86109 6.66667 4.72394 6.61285 4.60936 6.50521C4.49477 6.39757 4.43748 6.26389 4.43748 6.10417C4.43748 5.83333 4.49651 5.58507 4.61457 5.35937C4.73262 5.13368 4.93054 4.89583 5.20832 4.64583C5.56248 4.33333 5.79686 4.09201 5.91144 3.92187C6.02602 3.75174 6.08332 3.56597 6.08332 3.36458ZM4.99998 9.16667C4.77082 9.16667 4.57464 9.08507 4.41144 8.92187C4.24825 8.75868 4.16665 8.5625 4.16665 8.33333C4.16665 8.10417 4.24825 7.90799 4.41144 7.74479C4.57464 7.5816 4.77082 7.5 4.99998 7.5C5.22915 7.5 5.42533 7.5816 5.58852 7.74479C5.75172 7.90799 5.83332 8.10417 5.83332 8.33333C5.83332 8.5625 5.75172 8.75868 5.58852 8.92187C5.42533 9.08507 5.22915 9.16667 4.99998 9.16667Z\" fill=\"currentColor\"/></svg>", "keyboard_arrow_down": "<svg viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 9.02501C12.1333 9.02501 12.2583 9.04585 12.375 9.08751C12.4917 9.12918 12.6 9.20001 12.7 9.30001L17.3 13.9C17.4833 14.0833 17.575 14.3167 17.575 14.6C17.575 14.8833 17.4833 15.1167 17.3 15.3C17.1167 15.4833 16.8833 15.575 16.6 15.575C16.3167 15.575 16.0833 15.4833 15.9 15.3L12 11.4L8.10001 15.3C7.91668 15.4833 7.68335 15.575 7.40001 15.575C7.11668 15.575 6.88335 15.4833 6.70001 15.3C6.51668 15.1167 6.42501 14.8833 6.42501 14.6C6.42501 14.3167 6.51668 14.0833 6.70001 13.9L11.3 9.30001C11.4 9.20001 11.5083 9.12918 11.625 9.08751C11.7417 9.04585 11.8667 9.02501 12 9.02501Z\" fill=\"currentColor\"/></svg>", "trending_up": "<svg viewBox=\"0 0 16 16\" fill=\"none\"><path d=\"M1.79997 11.75C1.66664 11.6167 1.60275 11.4583 1.6083 11.275C1.61386 11.0917 1.67775 10.9389 1.79997 10.8167L5.31664 7.25001C5.57219 6.99445 5.88886 6.86667 6.26664 6.86667C6.64442 6.86667 6.96108 6.99445 7.21664 7.25001L8.9333 8.98334L12.4 5.55001H11.3333C11.1444 5.55001 10.9861 5.48612 10.8583 5.35834C10.7305 5.23056 10.6666 5.07223 10.6666 4.88334C10.6666 4.69445 10.7305 4.53612 10.8583 4.40834C10.9861 4.28056 11.1444 4.21667 11.3333 4.21667H14C14.1889 4.21667 14.3472 4.28056 14.475 4.40834C14.6027 4.53612 14.6666 4.69445 14.6666 4.88334V7.55001C14.6666 7.7389 14.6027 7.89723 14.475 8.02501C14.3472 8.15279 14.1889 8.21667 14 8.21667C13.8111 8.21667 13.6528 8.15279 13.525 8.02501C13.3972 7.89723 13.3333 7.7389 13.3333 7.55001V6.48334L9.8833 9.93334C9.62775 10.1889 9.31108 10.3167 8.9333 10.3167C8.55553 10.3167 8.23886 10.1889 7.9833 9.93334L6.26664 8.21667L2.7333 11.75C2.61108 11.8722 2.45553 11.9333 2.26664 11.9333C2.07775 11.9333 1.92219 11.8722 1.79997 11.75Z\" fill=\"currentColor\"/></svg>", "check": "<svg viewBox=\"0 0 12 12\" fill=\"none\"><path d=\"M4.77498 7.575L9.01248 3.3375C9.11248 3.2375 9.22915 3.1875 9.36248 3.1875C9.49582 3.1875 9.61248 3.2375 9.71248 3.3375C9.81248 3.4375 9.86248 3.55625 9.86248 3.69375C9.86248 3.83125 9.81248 3.95 9.71248 4.05L5.12498 8.65C5.02498 8.75 4.90831 8.8 4.77498 8.8C4.64165 8.8 4.52498 8.75 4.42498 8.65L2.27498 6.5C2.17498 6.4 2.12706 6.28125 2.13123 6.14375C2.1354 6.00625 2.18748 5.8875 2.28748 5.7875C2.38748 5.6875 2.50623 5.6375 2.64373 5.6375C2.78123 5.6375 2.89998 5.6875 2.99998 5.7875L4.77498 7.575Z\" fill=\"currentColor\"/></svg>", "history": "<svg viewBox=\"0 0 20 20\" fill=\"none\"><path d=\"M10 17.5C8.25 17.5 6.70139 16.9688 5.35417 15.9062C4.00694 14.8438 3.13194 13.4861 2.72917 11.8333C2.67361 11.625 2.71528 11.434 2.85417 11.2604C2.99306 11.0868 3.18056 10.9861 3.41667 10.9583C3.63889 10.9306 3.84028 10.9722 4.02083 11.0833C4.20139 11.1944 4.32639 11.3611 4.39583 11.5833C4.72917 12.8333 5.41667 13.8542 6.45833 14.6458C7.5 15.4375 8.68056 15.8333 10 15.8333C11.625 15.8333 13.0035 15.2674 14.1354 14.1354C15.2674 13.0035 15.8333 11.625 15.8333 10C15.8333 8.375 15.2674 6.99653 14.1354 5.86458C13.0035 4.73264 11.625 4.16667 10 4.16667C9.04167 4.16667 8.14583 4.38889 7.3125 4.83333C6.47917 5.27778 5.77778 5.88889 5.20833 6.66667H6.66667C6.90278 6.66667 7.10069 6.74653 7.26042 6.90625C7.42014 7.06597 7.5 7.26389 7.5 7.5C7.5 7.73611 7.42014 7.93403 7.26042 8.09375C7.10069 8.25347 6.90278 8.33333 6.66667 8.33333H3.33333C3.09722 8.33333 2.89931 8.25347 2.73958 8.09375C2.57986 7.93403 2.5 7.73611 2.5 7.5V4.16667C2.5 3.93056 2.57986 3.73264 2.73958 3.57292C2.89931 3.41319 3.09722 3.33333 3.33333 3.33333C3.56944 3.33333 3.76736 3.41319 3.92708 3.57292C4.08681 3.73264 4.16667 3.93056 4.16667 4.16667V5.29167C4.875 4.40278 5.73958 3.71528 6.76042 3.22917C7.78125 2.74306 8.86111 2.5 10 2.5C11.0417 2.5 12.0174 2.69792 12.9271 3.09375C13.8368 3.48958 14.6285 4.02431 15.3021 4.69792C15.9757 5.37153 16.5104 6.16319 16.9062 7.07292C17.3021 7.98264 17.5 8.95833 17.5 10C17.5 11.0417 17.3021 12.0174 16.9062 12.9271C16.5104 13.8368 15.9757 14.6285 15.3021 15.3021C14.6285 15.9757 13.8368 16.5104 12.9271 16.9062C12.0174 17.3021 11.0417 17.5 10 17.5ZM10.8333 9.66667L12.9167 11.75C13.0694 11.9028 13.1458 12.0972 13.1458 12.3333C13.1458 12.5694 13.0694 12.7639 12.9167 12.9167C12.7639 13.0694 12.5694 13.1458 12.3333 13.1458C12.0972 13.1458 11.9028 13.0694 11.75 12.9167L9.41667 10.5833C9.33333 10.5 9.27083 10.4062 9.22917 10.3021C9.1875 10.1979 9.16667 10.0903 9.16667 9.97917V6.66667C9.16667 6.43056 9.24653 6.23264 9.40625 6.07292C9.56597 5.91319 9.76389 5.83333 10 5.83333C10.2361 5.83333 10.434 5.91319 10.5938 6.07292C10.7535 6.23264 10.8333 6.43056 10.8333 6.66667V9.66667Z\" fill=\"currentColor\"/></svg>", "error": "<svg viewBox=\"0 0 24 24\" fill=\"none\"><path d=\"M12 17C12.2833 17 12.5208 16.9042 12.7125 16.7125C12.9042 16.5208 13 16.2833 13 16C13 15.7167 12.9042 15.4792 12.7125 15.2875C12.5208 15.0958 12.2833 15 12 15C11.7167 15 11.4792 15.0958 11.2875 15.2875C11.0958 15.4792 11 15.7167 11 16C11 16.2833 11.0958 16.5208 11.2875 16.7125C11.4792 16.9042 11.7167 17 12 17ZM12 13C12.2833 13 12.5208 12.9042 12.7125 12.7125C12.9042 12.5208 13 12.2833 13 12V8C13 7.71667 12.9042 7.47917 12.7125 7.2875C12.5208 7.09583 12.2833 7 12 7C11.7167 7 11.4792 7.09583 11.2875 7.2875C11.0958 7.47917 11 7.71667 11 8V12C11 12.2833 11.0958 12.5208 11.2875 12.7125C11.4792 12.9042 11.7167 13 12 13ZM12 22C10.6167 22 9.31667 21.7375 8.1 21.2125C6.88333 20.6875 5.825 19.975 4.925 19.075C4.025 18.175 3.3125 17.1167 2.7875 15.9C2.2625 14.6833 2 13.3833 2 12C2 10.6167 2.2625 9.31667 2.7875 8.1C3.3125 6.88333 4.025 5.825 4.925 4.925C5.825 4.025 6.88333 3.3125 8.1 2.7875C9.31667 2.2625 10.6167 2 12 2C13.3833 2 14.6833 2.2625 15.9 2.7875C17.1167 3.3125 18.175 4.025 19.075 4.925C19.975 5.825 20.6875 6.88333 21.2125 8.1C21.7375 9.31667 22 10.6167 22 12C22 13.3833 21.7375 14.6833 21.2125 15.9C20.6875 17.1167 19.975 18.175 19.075 19.075C18.175 19.975 17.1167 20.6875 15.9 21.2125C14.6833 21.7375 13.3833 22 12 22Z\" fill=\"currentColor\"/></svg>"}, "HELP": {"section": {"t": "सेवा स्थिति कैसे मापी जाती है?", "b": "सेवा स्थिति 2 हिस्सों से बनती है\n  समय पर काम: तय समय पर इंस्टॉल और तय समय में समाधान\n  ग्राहक की संतुष्टि: अटकी शिकायतें और सर्विस रेटिंग\nये 4 चीज़ें तय करती हैं कि बोनस और नया कनेक्शन मिलेगा या नहीं"}, "verdict": {"t": "सेवा स्थिति का मतलब", "b": "सब सही: 4 में से 4 सही, बोनस और नया कनेक्शन बने रहेंगे\nजोखिम में: 4 में से 3 सही, सुधार नहीं हुआ तो बोनस रुक सकता है\nख़राब: 4 में से 2 या कम सही, बोनस और नया कनेक्शन रुक जाएंगे"}, "domain_ii": {"t": "समय पर काम क्या है?", "b": "नया कनेक्शन तय समय पर लगा या नहीं\nशिकायत आने के बाद कितनी जल्दी आप ठीक करते हैं"}, "domain_service": {"t": "ग्राहक की संतुष्टि क्या है?", "b": "48 घंटे से ज़्यादा अटकी शिकायतें\nग्राहक आपकी सर्विस को कितनी रेटिंग देते हैं"}, "m1": {"t": "तय समय पर इंस्टॉल क्या है?", "b": "कन्फर्म हुई बुकिंग्स में से आपने कितनी बुकिंग्स का इंस्टॉल तय समय पर पूरा किया है।\nलक्ष्य: 80% से अधिक", "w": "पिछले 60 दिनों का औसत होता है"}, "m2": {"t": "तय समय में समाधान क्या है?", "b": "शिकायत आने के बाद कितनी जल्दी आप ठीक करते हैं\nलक्ष्य: 80% से अधिक", "w": "पिछले 60 दिनों का औसत होता है"}, "m3": {"t": "48 घंटे से ज़्यादा अटकी शिकायतें क्या हैं?", "b": "ऐसी शिकायतें जो 48 घंटे से ज़्यादा अटकी रहीं\nइनकी संख्या 2 या कम रखें", "w": "पिछले 15 दिनों की गिनती है"}, "m4": {"t": "सर्विस रेटिंग क्या है?", "b": "सर्विस पर कस्टमर ने कितनी रेटिंग दी है\nलक्ष्य: 4.3 से अधिक", "w": "आपकी हाल की 500 रेटिंग पर आधारित, ज़्यादा से ज़्यादा पिछले 12 महीने की"}, "oor": {"t": "ऑप्टिकल पावर क्या है?", "b": "नेटबॉक्स पर लगने वाली ऑप्टिकल पावर, कितने प्रतिशत लोगों को सही रेंज दे रही है\nलक्ष्य: 95% से अधिक\nऑप्टिकल पावर का सही रेंज: -8 dBm से -25 dBm", "w": "पिछले 15 दिनों का औसत होता है"}, "sdph": {"t": "पीक टाइम पर स्पीड क्या है?", "b": "शाम 6 PM – 12 AM तक कनेक्शन की औसत स्पीड\nलक्ष्य: 90% से अधिक\nसही स्पीड: 80 Mbps (GX और Syro), 63 Mbps (TP-Link)", "w": "पिछले 15 दिनों का औसत होता है"}}, "METRICS": {"m1": {"title": "तय समय पर इंस्टॉल", "help": "m1", "layout": "expanded", "chartHead": "पिछले 60 दिनों की परफॉर्मेंस", "pos": {"window": "पिछले 60 दिन का औसत", "target": "लक्ष्य 80% से अधिक", "value": "84%", "delta": "+2%", "up": true, "met": true, "body": "आपकी तय समय पर इनस्टॉल रेट अच्छा है। ऐसे ही काम करते रहे, ग्राहक आपकी सेवा से खुश हैं।", "chart": "m1_pos", "teamHead": "पिछले 60 दिनों में टीम परफॉर्मेंस (200 कन्फर्म बुकिंग )", "teamValue": "", "team": [{"i": "VR", "n": "Vijay Raj", "r": "Owner", "s": [["50", "कन्फर्म बुकिंग", "ink"], ["10", "समय पर", "pos"], ["3", "समय पर नहीं", "neg"], ["27", "पूरी नहीं ", "neg"]], "score": "32%", "scoreOk": false}, {"i": "VR", "n": "Rohit 1", "r": "Owner", "s": [["64", "कन्फर्म बुकिंग", "ink"], ["54", "समय पर", "pos"], ["3", "समय पर नहीं", "neg"], ["7", "पूरी नहीं ", "neg"]], "score": "88%", "scoreOk": true}, {"i": "VR", "n": "Rohit 1", "r": "Owner", "s": [["86", "कन्फर्म बुकिंग", "ink"], ["76", "समय पर", "pos"], ["4", "समय पर नहीं", "neg"], ["6", "पूरी नहीं ", "neg"]], "score": "92%", "scoreOk": true}]}, "neg": {"window": "पिछले 60 दिन का औसत", "target": "लक्ष्य 80% से अधिक", "value": "71%", "delta": "-4%", "up": false, "met": false, "body": "लक्ष्य से 9% कम। नीचे टीम में देखें किसकी बुकिंग सबसे ज़्यादा छूट रही हैं, सुधार वहीं से सबसे तेज़ आएगा।", "chart": "m1_neg", "teamHead": "पिछले 60 दिनों में टीम परफॉर्मेंस (200 कन्फर्म बुकिंग)", "teamValue": "", "team": [{"i": "VR", "n": "Vijay Raj", "r": "Owner", "s": [["50", "कन्फर्म बुकिंग", "ink"], ["20", "समय पर", "pos"], ["12", "समय पर नहीं", "neg"], ["18", "पूरी नहीं", "neg"]], "score": "40%", "scoreOk": false}, {"i": "R1", "n": "Rohit 1", "r": "Technician", "s": [["64", "कन्फर्म बुकिंग", "ink"], ["46", "समय पर", "pos"], ["9", "समय पर नहीं", "neg"], ["9", "पूरी नहीं", "neg"]], "score": "72%", "scoreOk": true}, {"i": "R2", "n": "Rohit 2", "r": "Technician", "s": [["86", "कन्फर्म बुकिंग", "ink"], ["76", "समय पर", "pos"], ["6", "समय पर नहीं", "neg"], ["4", "पूरी नहीं", "neg"]], "score": "88%", "scoreOk": true}]}}, "m2": {"title": "तय समय में समाधान", "help": "m2", "layout": "compact", "chartHead": "पिछले 60 दिनों की परफॉर्मेंस", "pos": {"window": "पिछले 60 दिन का औसत", "target": "लक्ष्य 80%+", "value": "82%", "delta": "+1%", "up": true, "met": true, "body": "आपकी तय समय पर समाधान रेट अच्छा है। ऐसे ही काम करते रहे, ग्राहक आपकी सेवा से खुश हैं।", "chart": "m2_pos", "teamHead": "पिछले 60 दिनों में टीम परफॉर्मेंस", "teamValue": "180", "team": [{"i": "VR", "n": "Vijay Raj", "r": "Owner", "s": [["45", "शिकायते ", "ink"], ["11", "समय पर", "pos"], ["29", "प्रभावित", "neg"]]}, {"i": "R1", "n": "Rohit 1", "r": "Technician", "s": [["30", "शिकायते ", "ink"], ["28", "समय पर", "pos"], ["1", "प्रभावित", "neg"]]}, {"i": "R2", "n": "Rohit 2", "r": "Technician", "s": [["20", "शिकायते ", "ink"], ["20", "समय पर", "pos"], ["0", "प्रभावित", "muted"]]}]}, "neg": {"window": "पिछले 60 दिन का औसत", "target": "लक्ष्य 80% से अधिक", "value": "69%", "delta": "-3%", "up": false, "met": false, "body": "लक्ष्य से 11% कम। तय समय के बाद बंद हुए टिकट ही इसे नीचे रख रहे हैं। नीचे देखें किसके सबसे ज़्यादा हैं।", "chart": "m2_neg", "teamHead": "पिछले 60 दिनों में टीम परफॉर्मेंस", "teamValue": "180", "team": [{"i": "VR", "n": "Vijay Raj", "r": "Owner", "s": [["80", "शिकायतें", "ink"], ["45", "समय पर", "pos"], ["35", "प्रभावित", "neg"]]}, {"i": "R1", "n": "Rohit 1", "r": "Technician", "s": [["60", "शिकायतें", "ink"], ["43", "समय पर", "pos"], ["17", "प्रभावित", "neg"]]}, {"i": "R2", "n": "Rohit 2", "r": "Technician", "s": [["40", "शिकायतें", "ink"], ["36", "समय पर", "pos"], ["4", "प्रभावित", "muted"]]}]}}, "m3": {"title": "अटकी शिकायतें", "help": "m3", "layout": "compact", "chartHead": "पिछले 15 दिन की परफॉर्मेंस", "pos": {"window": "पिछले 15 दिन की शिकायते  ", "target": "लक्ष्य 80% से अधिक", "value": "1", "delta": "", "up": true, "met": true, "body": "आपकी अटकी शिकायते कम है। ऐसे ही काम करते रहे, ग्राहक आपकी सेवा से खुश हैं।", "tiles": [["40", "कुल टिकट", "neutral"], ["39", "समय पर बंद", "pos"], ["1", "48 घंटे से ज़्यादा", "neg"]], "teamHead": "टीम परफॉर्मेंस ", "teamValue": "", "team": [{"i": "VR", "n": "Vijay Raj", "r": "Owner", "s": [["20", "शिकायते ", "ink"], ["1", "48 घंटे से ज़्यादा", "neg"]]}, {"i": "R1", "n": "Rohit 1", "r": "Technician", "s": [["10", "शिकायते ", "ink"], ["0", "48 घंटे से ज़्यादा", "muted"]]}, {"i": "R2", "n": "Rohit 2", "r": "Technician", "s": [["10", "शिकायते ", "ink"], ["0", "48 घंटे से ज़्यादा", "muted"]]}]}, "neg": {"window": "पिछले 15 दिन की शिकायतें", "target": "लक्ष्य 2 या कम", "value": "5", "delta": "", "up": false, "met": false, "body": "लक्ष्य से 3 ज़्यादा। 48 घंटे पार कर चुकी शिकायतें गिनती में रहेंगी। बाकी को 48 घंटे के अंदर बंद करें ताकि गिनती और न बढ़े।", "tiles": [["44", "कुल टिकट", "neutral"], ["39", "समय पर बंद", "pos"], ["5", "48 घंटे से ज़्यादा", "neg"]], "teamHead": "टीम परफॉर्मेंस", "teamValue": "", "team": [{"i": "VR", "n": "Vijay Raj", "r": "Owner", "s": [["20", "शिकायतें", "ink"], ["4", "48 घंटे से ज़्यादा", "neg"]]}, {"i": "R1", "n": "Rohit 1", "r": "Technician", "s": [["14", "शिकायतें", "ink"], ["1", "48 घंटे से ज़्यादा", "muted"]]}, {"i": "R2", "n": "Rohit 2", "r": "Technician", "s": [["10", "शिकायतें", "ink"], ["0", "48 घंटे से ज़्यादा", "muted"]]}]}}, "m4": {"title": "सर्विस रेटिंग", "help": "m4", "layout": "compact", "chartHead": "", "pos": {"window": "पिछली 500 रेटिंग का औसत", "target": "लक्ष्य 4.3+", "value": "4.4", "delta": "+0.1", "up": true, "met": true, "body": "रेटिंग काफ़ी अच्छी है। ऐसे ही काम करते रहे, ग्राहक आपकी सेवा से खुश हैं।", "teamHead": "टीम परफॉर्मेंस ", "teamValue": "", "team": [{"i": "VR", "n": "Vijay Raj", "r": "Owner", "s": [["200", "प्राप्त रेटिंग ", "ink"], ["3.2", "औसत ", "neg"]]}, {"i": "R1", "n": "Rohit 1", "r": "Technician", "s": [["200", "प्राप्त रेटिंग ", "ink"], ["4.4", "औसत ", "pos"]]}, {"i": "R2", "n": "Rohit 2", "r": "Technician", "s": [["200", "प्राप्त रेटिंग ", "ink"], ["4.5", "औसत ", "pos"]]}]}, "neg": {"window": "पिछली 500 रेटिंग का औसत", "target": "लक्ष्य 4.3 से अधिक", "value": "4.0", "delta": "-0.2", "up": false, "met": false, "body": "लक्ष्य से 0.3 कम। सबसे ज़्यादा असर Vijay Raj की 3.2 रेटिंग का है। अगली कुछ विज़िट उनके साथ करें।", "teamHead": "टीम परफॉर्मेंस", "teamValue": "", "team": [{"i": "VR", "n": "Vijay Raj", "r": "Owner", "s": [["160", "प्राप्त रेटिंग", "ink"], ["3.2", "औसत", "neg"]]}, {"i": "R1", "n": "Rohit 1", "r": "Technician", "s": [["190", "प्राप्त रेटिंग", "ink"], ["4.4", "औसत", "pos"]]}, {"i": "R2", "n": "Rohit 2", "r": "Technician", "s": [["150", "प्राप्त रेटिंग", "ink"], ["4.4", "औसत", "pos"]]}]}}}, "HOMES": {"atrisk": {"label": "जोखिम में", "tone": "warn", "hero": {"title": "जोखिम में", "sub": "बोनस बनाए रखने के लिए यह 1 चीज़ अभी सुधारें", "rows": [{"m": "m2", "label": "तय समय में समाधान", "v": "72%", "met": false, "target": "लक्ष्य 80% से अधिक"}], "more": false}, "domains": [{"help": "domain_ii", "name": "समय पर काम ", "count": "1/2", "met": false, "open": true, "rows": [{"m": "m1", "label": "तय समय पर इंस्टॉल", "v": "92%", "met": true, "target": ""}, {"m": "m2", "label": "तय समय में समाधान", "v": "72%", "met": false, "target": "लक्ष्य 80% से अधिक"}]}, {"help": "domain_service", "name": "ग्राहक की संतुष्टि", "count": "2/2", "met": true, "open": false, "rows": [{"m": "m3", "label": "48 घंटे से ज़्यादा अटकी शिकायतें", "v": "1", "met": true, "target": ""}, {"m": "m4", "label": "सर्विस रेटिंग", "v": "4.5", "met": true, "target": ""}]}], "banner": {"text": "आप बोनस पाने की राह पर हैं", "tone": "ok"}, "bonus": [{"help": "oor", "label": "ऑप्टिकल पावर", "badge": "अच्छा", "badgeTone": "neutral", "v": "91%", "met": true, "target": "लक्ष्य 95% से अधिक"}, {"help": "sdph", "label": "पीक टाइम पर स्पीड", "badge": "बेसिक", "badgeTone": "crit", "v": "82%", "met": false, "target": "लक्ष्य 90% से अधिक"}]}, "compliant": {"label": "सब सही है", "tone": "ok", "hero": {"title": "सब सही है", "sub": "ऐसे ही काम करते रहें, बोनस मिलता रहेगा", "rows": [], "more": false}, "domains": [{"help": "domain_ii", "name": "समय पर काम ", "count": "2/2", "met": true, "open": true, "rows": [{"m": "m1", "label": "तय समय पर इंस्टॉल", "v": "90%", "met": true, "target": ""}, {"m": "m2", "label": "तय समय में समाधान", "v": "88%", "met": true, "target": ""}]}, {"help": "domain_service", "name": "ग्राहक की संतुष्टि", "count": "2/2", "met": true, "open": false, "rows": [{"m": "m3", "label": "48 घंटे से ज़्यादा अटकी शिकायतें", "v": "0", "met": true, "target": ""}, {"m": "m4", "label": "सर्विस रेटिंग", "v": "4.6", "met": true, "target": ""}]}], "banner": {"text": "आप बोनस पाने की राह पर हैं", "tone": "ok"}, "bonus": [{"help": "oor", "label": "ऑप्टिकल पावर", "badge": "बहुत अच्छा", "badgeTone": "pos", "v": "94%", "met": true, "target": ""}, {"help": "sdph", "label": "पीक टाइम पर स्पीड", "badge": "अच्छा", "badgeTone": "neutral", "v": "93%", "met": true, "target": "लक्ष्य 90% से अधिक"}]}, "noncompliant": {"label": "स्थिति खराब है", "tone": "crit", "hero": {"title": "स्थिति खराब है", "sub": "4 में से 4 खराब · बोनस पाने के लिए ज़रूरी सुधार करें", "rows": [{"m": "m1", "label": "तय समय पर इंस्टॉल", "v": "70%", "met": false, "target": "लक्ष्य 80% से अधिक"}, {"m": "m2", "label": "तय समय में समाधान", "v": "72%", "met": false, "target": "लक्ष्य 80% से अधिक"}], "more": true}, "domains": [{"help": "domain_ii", "name": "समय पर काम ", "count": "0/2", "met": false, "open": true, "rows": [{"m": "m1", "label": "तय समय पर इंस्टॉल", "v": "70%", "met": false, "target": "लक्ष्य 80% से अधिक"}, {"m": "m2", "label": "तय समय में समाधान", "v": "72%", "met": false, "target": "लक्ष्य 80% से अधिक"}]}, {"help": "domain_service", "name": "ग्राहक की संतुष्टि", "count": "0/2", "met": false, "open": false, "rows": [{"m": "m3", "label": "48 घंटे से ज़्यादा अटकी शिकायतें", "v": "5", "met": false, "target": "लक्ष्य 2 या कम"}, {"m": "m4", "label": "सर्विस रेटिंग", "v": "4.0", "met": false, "target": "लक्ष्य 4.3 से अधिक"}]}], "banner": {"text": "बोनस पाने के लिए ज़रूरी सुधार करें", "tone": "crit"}, "bonus": [{"help": "oor", "label": "ऑप्टिकल पावर", "badge": "बेसिक", "badgeTone": "crit", "v": "78%", "met": false, "target": "लक्ष्य 90% से अधिक"}, {"help": "sdph", "label": "पीक टाइम पर स्पीड", "badge": "बेसिक", "badgeTone": "crit", "v": "82%", "met": false, "target": "लक्ष्य 90% से अधिक"}]}}, "PREV": {"header": "पिछली बार का स्टेटस - 1 - 15 जुलाई ", "chip": "जोखिम में था ", "summary": "4 में से 3 सही", "metrics": [["तय समय पर इंस्टॉल", "88%", true], ["तय समय में समाधान", "72%", false], ["48 घंटे से ज़्यादा अटकी शिकायतें", "1", true], ["सर्विस रेटिंग", "4.5", true]], "bonusHead": "बोनस स्थिति", "bonus": [["ऑप्टिकल पावर", "92%", true], ["पीक टाइम पर स्पीड", "96%", true]], "note": "पिछली बार आपको बोनस नहीं मिला, पर नया काम मिल रहा है, इस बार सेवा स्थिति सही करें ताकि बोनस और काम मिलता रहे।"}, "EDU": {"header": "सेवा स्थिति कैसे तय होती है?", "intro": "सेवा स्थिति 2 हिस्सों से बनती है, समय पर काम और ग्राहक की संतुष्टि", "cards": [["समय पर काम", "तय समय पर इंस्टॉल · तय समय में समाधान"], ["ग्राहक की संतुष्टि", "अटकी शिकायतें · सर्विस रेटिंग"]], "footer": "ये 4 चीज़ें तय करती हैं कि बोनस और नया कनेक्शन मिलेगा या नहीं"}, "SERIES": {"m1_pos": "86g,77r,89g,81g,78r,68r,85g,67r,70r,-,79r,83g,81g,78r,71r,65r,87g,71r,88g,77r,69r,86g,69r,84g,79r,75r,76r,68r,72r,72r,81g,72r,75r,82g,65r,66r,77r,76r,70r,68r,86g,69r,81g,69r,75r,80g,82g,84g,86g,88g,90g", "m2_pos": "86g,77r,89g,81g,78r,68r,85g,67r,70r,67r,79r,83g,81g,78r,71r,65r,87g,71r,88g,77r,69r,86g,69r,84g,79r,75r,76r,68r,72r,72r,81g,72r,75r,82g,65r,66r,77r,76r,70r,68r,86g,69r,81g,69r,75r,80g,82g,84g,86g,88g,90g", "m1_neg": "80g,68r,75r,71r,60r,83g,66r,72r,74r,63r,77r,70r,84g,61r,73r,68r,79r,65r,72r,76r,64r,70r,82g,59r,75r,71r,66r,78r,73r,62r,81g,69r,74r,67r,72r,60r,76r,71r,84g,65r,70r,73r,62r,77r,68r,75r,59r,72r,66r,80g,71r", "m2_neg": "78r,66r,74r,69r,58r,81g,64r,70r,72r,61r,75r,68r,83g,59r,71r,66r,77r,63r,70r,74r,62r,68r,80g,57r,73r,69r,64r,76r,71r,60r,79r,67r,72r,65r,70r,58r,74r,69r,82g,63r,68r,71r,60r,75r,66r,73r,57r,70r,64r,78r,69r"}, "DAYS": ["24", "25", "26", "27", "28", "29", "30", "31", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22"], "MONTHS": {"0": "May", "8": "Jun", "38": "Jul"}, "TIERS": {"t": "बोनस की कैटेगरी", "sub": "क्वालिटी बेहतर होने पर बोनस बढ़ता है, और दोनों कैटेगरी बेसिक होने पर बोनस नहीं मिलता", "cols": ["कैटेगरी", "ऑप्टिकल पावर", "पीक टाइम पर स्पीड"], "rows": [{"pill": "बहुत अच्छा", "tone": "pos", "oor": "95% से अधिक", "sdph": "90% से अधिक"}, {"pill": "अच्छा", "tone": "info", "oor": "90%-95%", "sdph": "85%-90%"}, {"pill": "बेसिक", "tone": "basic", "oor": "90% से कम", "sdph": "85% से कम"}], "current": {"atrisk": 2, "compliant": 1, "noncompliant": -1}}, "CYCLE": "इस बार का स्टेटस · 16–31 जुलाई"};
+
+const esc = (s) => (s==null?'':String(s));
+const icon = (n,c)=>`<span class="ic ${c||''}">${D.ICONS[n]}</span>`;
+const INFO_SVG = '<svg viewBox="0 0 24 24" fill="none"><path d="M11 7h2v2h-2V7zm0 4h2v6h-2v-6zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="currentColor"/></svg>';
+
+let st = { view:'cover', home:'atrisk', metric:null, tone:'pos', prev:false, edu:false };
+const q = new URLSearchParams(location.search);
+if(q.get('s')) st.view = q.get('s');
+if(q.get('h')) st.home = q.get('h');
+if(q.get('m')) { st.metric = q.get('m'); st.view = 'home'; }
+if(q.get('t')) st.tone = q.get('t');
+if(q.get('prev')) st.prev = true;
+if(q.get('edu')) st.edu = true;
+const screen = document.getElementById('screen');
+
+/* ── Series decoding ─────────────────────────────────────────────────── */
+function series(key){
+  return D.SERIES[key].split(',').map(s => s === '-' ? {v:null,met:false}
+    : {v:parseInt(s,10), met:s.slice(-1)==='g'});
+}
+
+/* ── Shared bits ─────────────────────────────────────────────────────── */
+const qmark = (k,mod)=>`<span class="qbtn ${mod||''}" data-help="${k}">${D.ICONS.question_mark}</span>`;
+const mark = (met)=> met ? `<span class="bubble mut">${icon('check')}</span>` : `<span class="bubble crit">!</span>`;
+/* Domain heads use an 18px bordered bubble, distinct from the 20px row one. */
+const domMark = (met)=> met ? `<span class="bubble sm pass">${icon('check')}</span>` : `<span class="bubble sm fail">!</span>`;
+const trend = (met)=>`<span class="ic" style="width:16px;height:16px;color:${met?'var(--pos)':'var(--neg)'}">${D.ICONS.trending_up}</span>`;
+
+function metricRow(r, useTrend){
+  return `<div class="mrow">
+    <div class="l1"><span class="lbl">${esc(r.label)}</span>${qmark(r.m)}
+      <span class="spacer"></span>${useTrend?trend(r.met):mark(r.met)}
+      <span class="val ${r.met?'pos':'neg'}">${esc(r.v)}</span></div>
+    <div class="l2"><span class="lnk" data-metric="${r.m}" data-tone="${r.met?'pos':'neg'}">डिटेल देखें</span>
+      ${r.target?`<span class="tgt">${esc(r.target)}</span>`:''}</div>
+  </div>`;
+}
+
+/* ── Home ────────────────────────────────────────────────────────────── */
+function homeHTML(){
+  const H = D.HOMES[st.home];
+  const domains = H.domains.map((d,i)=>`
+    <div class="dom">
+      <div class="dhead" data-dom="${i}">
+        <span class="dname">${esc(d.name)}</span>${qmark(d.help)}
+        <span class="spacer"></span>${domMark(d.met)}<span class="dcount">${esc(d.count)}</span>
+        <span class="ic chev ${d.open?'up':''}" data-chev="${i}">${D.ICONS.keyboard_arrow_down}</span>
+      </div>
+      <div class="collapse ${d.open?'open':''}" data-body="${i}"><div class="inner">
+        <hr class="divider" style="margin:12px 0">
+        <div class="stack">${d.rows.map(r=>metricRow(r,true)).join('')}</div>
+      </div></div>
+    </div>`).join('');
+
+  const bonus = H.bonus.map(b=>`
+    <div class="mrow brow">
+      <div class="l1"><span class="lbl">${esc(b.label)}</span>${qmark(b.help)}
+        <span class="spacer"></span><span class="badge ${b.badgeTone}">${esc(b.badge)}</span>
+        <span class="val ${b.met?'pos':'neg'}">${esc(b.v)}</span></div>
+      <div class="l2"><span class="lnk" data-help="${b.help}">डिटेल देखें</span>
+        ${b.target?`<span class="tgt">${esc(b.target)}</span>`:''}</div>
+    </div>`).join('<hr class="divider" style="margin:12px 0">');
+
+  const prevBody = `<div class="prevBody">
+      <div class="chip"><span class="cb">!</span><span class="ct">${esc(D.PREV.chip)}</span></div>
+      <div class="subhead">${esc(D.PREV.summary)}</div>
+      <div class="vlist">${D.PREV.metrics.map(m=>`<div class="vrow"><span class="bul"></span><span class="vl">${esc(m[0])}</span>${mark(m[2])}<span class="vv ${m[2]?'':'neg'}">${esc(m[1])}</span></div>`).join('')}</div>
+      <div class="subhead" style="margin-top:4px">${esc(D.PREV.bonusHead)}</div>
+      <div class="vlist">${D.PREV.bonus.map(m=>`<div class="vrow"><span class="bul"></span><span class="vl">${esc(m[0])}</span>${mark(m[2])}<span class="vv">${esc(m[1])}</span></div>`).join('')}</div>
+      <div class="note"><span style="color:var(--warnOrange)">⚠</span><span>${esc(D.PREV.note)}</span></div>
+    </div>`;
+  const eduBody = `<div class="prevBody">
+      <div class="eduIntro">${esc(D.EDU.intro)}</div>
+      ${D.EDU.cards.map(c=>`<div class="eduCard"><div class="et">${esc(c[0])}</div><div class="es">${esc(c[1])}</div></div>`).join('')}
+      <div class="eduFoot">${esc(D.EDU.footer)}</div></div>`;
+
+  return `<div class="topbar">
+      <span class="ic tap" style="width:24px;height:24px;color:var(--ondark)">${D.ICONS.arrow_back}</span>
+      <span class="ttl">सेवा स्थिति</span>
+      <span class="ic tap" style="width:24px;height:24px;color:var(--headerIcon)" data-help="section">${D.ICONS.help}</span>
+    </div>
+    <div class="scroll"><div class="body">
+      <div class="hero ${H.tone}">
+        <div class="cycle">${esc(D.CYCLE)}</div>
+        <div class="head">
+          <span class="bubble ${H.tone}">${H.tone==='ok'?'✓':'!'}</span>
+          <span class="texts"><span class="h1">${esc(H.hero.title)}</span><span class="h2">${esc(H.hero.sub)}</span></span>
+          ${qmark('verdict','q18')}
+        </div>
+        ${H.hero.rows.length?`<hr class="divider"><div class="stack">${H.hero.rows.map(r=>metricRow(r,false)).join('')}</div>`:''}
+        ${H.hero.more?`<div style="display:flex;align-items:center;justify-content:center;gap:4px">
+          <span style="font:600 12px/16px 'Noto Sans Devanagari';color:var(--ink-3)">और देखें</span>
+          <span class="ic" style="width:16px;height:16px;color:var(--nonaction);transform:rotate(180deg)">${D.ICONS.keyboard_arrow_down}</span></div>`:''}
+      </div>
+      <div>
+        <div class="sec-head"><span class="t">पूरी जानकारी</span><span class="m">डेटा 14 जून तक का है</span></div>
+        <div class="stack" style="margin-top:12px">${domains}</div>
+      </div>
+      <div>
+        <div class="sec-head"><span class="t">बोनस पर असर</span></div>
+        <div class="sec-sub">ये दो चीज़ें जितनी अच्छी होती हैं, उतना ज़्यादा बोनस मिलता है</div>
+        <div class="stack" style="margin-top:12px">
+          <div class="banner ${H.banner.tone==='crit'?'crit':''}">
+            <span class="bubble ${H.banner.tone==='crit'?'crit':'ok'}">${
+              H.banner.tone==='crit' ? icon('error') : icon('check')}</span>
+            <span class="bt ${H.banner.tone==='crit'?'neg':''}">${esc(H.banner.text)}</span>
+            <span class="qbtn" data-tiers="1">${D.ICONS.question_mark}</span></div>
+          <div class="card pad">${bonus}</div>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card" style="background:var(--sheet)">
+          <div class="footcard" id="prevT"><span class="circ">${icon('history')}</span>
+            <span class="ft">${esc(D.PREV.header)}</span>
+            <span class="ic chev ${st.prev?'up':''}" id="prevC">${D.ICONS.keyboard_arrow_down}</span></div>
+          <div class="collapse ${st.prev?'open':''}" id="prevB"><div class="inner">${prevBody}</div></div>
+        </div>
+        <div class="card" style="background:var(--sheet)">
+          <div class="footcard" id="eduT"><span class="circ">${icon('question_mark')}</span>
+            <span class="ft">${esc(D.EDU.header)}</span>
+            <span class="ic chev ${st.edu?'up':''}" id="eduC">${D.ICONS.keyboard_arrow_down}</span></div>
+          <div class="collapse ${st.edu?'open':''}" id="eduB"><div class="inner">${eduBody}</div></div>
+        </div>
+      </div>
+    </div></div>`;
+}
+
+/* ── Drilldown sheet ─────────────────────────────────────────────────── */
+function chartHTML(m,d){
+  const rows = series(d.chart), PLOT = 116;
+  const met = d.met ? 'var(--barMetP)' : 'var(--barMetN)';
+  const miss = d.met ? 'var(--barMissP)' : 'var(--barMissN)';
+  const cols = rows.map(p=>{
+    // No-work days draw as a 14px stub labelled 0%, exactly as Figma does.
+    const h = p.v==null ? 14 : Math.min(Math.round(p.v/100*PLOT + 14), PLOT);
+    const f = p.v==null ? 'var(--barNone)' : (p.met ? met : miss);
+    return `<div class="col"><span class="cv">${p.v==null?'0%':p.v+'%'}</span>
+      <span class="bar" style="height:${h}px;background:${f}"></span></div>`;
+  }).join('');
+  const days = D.DAYS.slice(0,rows.length).map(x=>`<span>${x}</span>`).join('');
+  const mons = D.DAYS.slice(0,rows.length).map((_,i)=>`<span>${D.MONTHS[i]||''}</span>`).join('');
+  return `<div class="chartHead"><span class="ct">${esc(m.chartHead)}</span></div>
+    <div class="chartWrap"><div class="plotScroll">
+      <div class="plot">${cols}</div><div class="axis">${days}</div><div class="axis mon">${mons}</div>
+    </div></div>
+    <div class="legend">
+      <span class="li"><span class="sw" style="background:${met}"></span>लक्ष्य पूरा</span>
+      <span class="li"><span class="sw" style="background:${miss}"></span>चूक</span>
+      <span class="li"><span class="dash"></span>लक्ष्य 80%</span>
+      <span class="li"><span class="sw" style="background:var(--barNone)"></span>कोई काम नहीं</span>
+    </div>`;
+}
+function teamHTML(m,d){
+  const rows = d.team.map(t=>{
+    const stats = t.s.map(s=>`<span class="st"><span class="sv ${s[2]==='pos'?'pos':(s[2]==='neg'?'neg':(s[2]==='muted'?'muted':'ink'))}">${esc(s[0])}</span><span class="sl">${esc(s[1])}</span></span>`).join('');
+    if(m.layout==='expanded'){
+      return `<div class="member"><div class="mtop"><span class="av">${esc(t.i)}</span>
+        <span style="flex:1"><span class="mname" style="display:block">${esc(t.n)}</span><span class="mrole">${esc(t.r)}</span></span>
+        ${t.score?`<span class="score ${t.scoreOk?'ok':'bad'}">${esc(t.score)}</span>`:''}</div>
+        <div class="mstats divided">${stats}</div></div>`;
+    }
+    return `<div class="member"><div class="mcompact"><span class="av">${esc(t.i)}</span>
+      <span style="flex:1"><span class="mname" style="display:block">${esc(t.n)}</span><span class="mrole">${esc(t.r)}</span></span>
+      ${stats}</div></div>`;
+  }).join('');
+  return `<div class="teamHead"><span class="tt">${esc(d.teamHead)}</span>${d.teamValue?`<span class="tv">${esc(d.teamValue)}</span>`:''}</div>
+    <div class="teamList">${rows}</div>`;
+}
+function sheetHTML(){
+  if(!st.metric) return '';
+  const m = D.METRICS[st.metric], d = m[st.tone];
+  const tiles = d.tiles ? `<div class="chartHead"><span class="ct">${esc(m.chartHead)}</span></div>
+    <div class="tiles">${d.tiles.map(t=>`<div class="tile ${t[2]}"><div class="tv">${esc(t[0])}</div><div class="tl">${esc(t[1])}</div></div>`).join('')}</div>` : '';
+  return `<div class="grab"></div>
+    <div class="sheetBar"><span class="st">${esc(m.title)}</span>${qmark(m.help,'lg')}</div>
+    <div class="sheetScroll">
+      <div class="dHead">
+        <div class="row"><span class="win">${esc(d.window)}</span><span class="tgt">${esc(d.target)}</span></div>
+        <div class="bigRow"><span class="big ${d.met?'pos':'neg'}">${esc(d.value)}</span>
+          ${d.delta?`<span class="trend ${d.up?'pos':'neg'}"><span class="tri ${d.up?'up':'dn'}"></span>${esc(d.delta)}</span>`:''}</div>
+        <div class="dBody">${esc(d.body)}</div>
+      </div>
+      <hr class="hr">
+      ${d.chart?chartHTML(m,d):tiles}
+      <hr class="hr">
+      ${teamHTML(m,d)}
+    </div>`;
+}
+
+/* ── Paint ───────────────────────────────────────────────────────────── */
+function paint(){
+  if(st.view==='cover'){
+    screen.innerHTML = `<div class="canvas"><div class="cover"><h2>Seva Sthiti — Home and Drilldown screens</h2><button id="start">Start</button></div></div>`;
+    document.getElementById('start').onclick = ()=>{ st.view='home'; paint(); };
+    paintPanel(); return;
+  }
+  screen.innerHTML = `<div class="canvas">${homeHTML()}</div>
+    <div class="scrim" id="scrim"></div>
+    <div class="sheet" id="sheet">${sheetHTML()}</div>
+    <div class="hscrim" id="hscrim"></div>
+    <div class="hsheet" id="hsheet"></div>`;
+  if(st.metric){
+    requestAnimationFrame(()=>{
+      document.getElementById('scrim').classList.add('on');
+      document.getElementById('sheet').classList.add('on');
+    });
+  }
+  wire(); paintPanel();
+}
+
+function openHelp(k){
+  const h = D.HELP[k]; if(!h) return;
+  const lines = (h.w ? h.b + '\n' + h.w : h.b).split('\n').filter(l=>l.trim());
+  const bullets = lines.map(l=>{
+    const sub = /^\s/.test(l);
+    return `<div class="bul-row${sub?' sub':''}"><span class="dot">•</span><span class="txt">${esc(l.trim())}</span></div>`;
+  }).join('');
+  const s = document.getElementById('hsheet');
+  s.innerHTML = `<div class="hgrab"></div><div class="hhead"><span class="ic">${INFO_SVG}</span><h3>${esc(h.t)}</h3></div>${bullets}`;
+  document.getElementById('hscrim').classList.add('on');
+  s.classList.add('on');
+}
+/* The "?" on the bonus banner opens the tier table, taken from the app's
+   बोनस की कैटेगरी sheet. The CSP's current tier is highlighted per state. */
+function openTiers(){
+  const T = D.TIERS, cur = T.current[st.home];
+  const head = `<tr><th>${T.cols.map(esc).join('</th><th>')}</th></tr>`;
+  const body = T.rows.map((r,i)=>`<tr class="${i===cur?'cur':''}">
+      <td><span class="tpill ${r.tone}">${esc(r.pill)}</span></td>
+      <td>${esc(r.oor)}</td><td>${esc(r.sdph)}</td></tr>`).join('');
+  const s = document.getElementById('hsheet');
+  s.innerHTML = `<div class="hgrab"></div>
+    <div class="hhead"><span class="ic">${INFO_SVG}</span><h3>${esc(T.t)}</h3></div>
+    <p class="sub">${esc(T.sub)}</p>
+    <table class="tt">${head}${body}</table>`;
+  document.getElementById('hscrim').classList.add('on');
+  s.classList.add('on');
+}
+function closeHelp(){
+  document.getElementById('hscrim').classList.remove('on');
+  document.getElementById('hsheet').classList.remove('on');
+}
+function closeSheet(){
+  const sc = document.getElementById('scrim'), sh = document.getElementById('sheet');
+  sc.classList.remove('on'); sh.classList.remove('on');
+  setTimeout(()=>{ st.metric = null; paint(); }, 300);
+}
+
+function wire(){
+  screen.querySelectorAll('[data-help]').forEach(el=>{ el.onclick=(e)=>{e.stopPropagation();openHelp(el.dataset.help);} });
+  screen.querySelectorAll('[data-tiers]').forEach(el=>{ el.onclick=(e)=>{e.stopPropagation();openTiers();} });
+  document.getElementById('hscrim').onclick = closeHelp;
+  document.getElementById('scrim').onclick = closeSheet;
+  screen.querySelectorAll('[data-metric]').forEach(el=>{
+    el.onclick=(e)=>{ e.stopPropagation(); st.metric=el.dataset.metric; st.tone=el.dataset.tone; paint(); };
+  });
+  screen.querySelectorAll('[data-dom]').forEach(el=>{
+    el.onclick=()=>{ const i=el.dataset.dom;
+      const b=screen.querySelector(`[data-body="${i}"]`), c=screen.querySelector(`[data-chev="${i}"]`);
+      b.classList.toggle('open'); c.classList.toggle('up');
+      D.HOMES[st.home].domains[i].open = b.classList.contains('open'); };
+  });
+  const pt=document.getElementById('prevT');
+  if(pt) pt.onclick=()=>{ st.prev=!st.prev;
+    document.getElementById('prevB').classList.toggle('open',st.prev);
+    document.getElementById('prevC').classList.toggle('up',st.prev); };
+  const et=document.getElementById('eduT');
+  if(et) et.onclick=()=>{ st.edu=!st.edu;
+    document.getElementById('eduB').classList.toggle('open',st.edu);
+    document.getElementById('eduC').classList.toggle('up',st.edu); };
+}
+
+/* ── Outside-the-frame controls ──────────────────────────────────────── */
+function paintPanel(){
+  const homes=[['atrisk','जोखिम में · AT_RISK'],['compliant','सब सही है · COMPLIANT'],['noncompliant','स्थिति खराब है · NON_COMPLIANT']];
+  document.getElementById('segHome').innerHTML = homes.map(([k,l])=>
+    `<button data-h="${k}" class="${st.home===k&&st.view!=='cover'?'on':''}">${l}</button>`).join('');
+  const mets=[['m1','तय समय पर इंस्टॉल'],['m2','तय समय में समाधान'],['m3','अटकी शिकायतें'],['m4','सर्विस रेटिंग']];
+  document.getElementById('segMetric').innerHTML = mets.map(([k,l])=>
+    `<button data-m="${k}" class="${st.metric===k?'on':''}">${l}</button>`).join('')
+    + `<button data-m="" class="${!st.metric?'on':''}">बंद करें · none</button>`;
+  document.getElementById('segTone').innerHTML =
+    `<button data-t="pos" class="${st.tone==='pos'?'on':''}">Positive</button>
+     <button data-t="neg" class="${st.tone==='neg'?'on':''}">Negative</button>`;
+
+  document.querySelectorAll('#segHome button').forEach(b=>b.onclick=()=>{
+    st.home=b.dataset.h; st.view='home'; st.prev=false; st.edu=false; paint(); });
+  document.querySelectorAll('#segMetric button').forEach(b=>b.onclick=()=>{
+    st.metric = b.dataset.m || null; st.view='home'; paint(); });
+  document.querySelectorAll('#segTone button').forEach(b=>b.onclick=()=>{
+    st.tone=b.dataset.t; paint(); });
+}
+
+paint();
+if(q.get('help')) setTimeout(()=>openHelp(q.get('help')), 80);
+if(q.get('tiers')) setTimeout(openTiers, 80);
+/* ?measure=1 prints element boxes so they can be diffed against Figma numbers. */
+if(q.get('measure')) setTimeout(()=>{
+  const cv=document.querySelector('.canvas'); const top=cv.getBoundingClientRect().top;
+  const pick=[['TopBar','.topbar'],['Body','.body'],['Hero','.hero'],['HeroHead','.hero .head'],
+    ['HeroDivider','.hero .divider'],['HeroRow','.hero .mrow'],['SecA','.body > div:nth-child(2)'],
+    ['Dom1','.dom'],['Dom1Head','.dom .dhead'],['Dom1Row','.dom .mrow'],
+    ['Dom2','.stack > .dom:nth-child(2)'],['SecB','.body > div:nth-child(3)'],
+    ['Banner','.banner'],['BonusCard','.card.pad'],['BonusRow','.brow'],
+    ['Foot','.body > div:nth-child(4)'],['FootCard','.footcard']];
+  const out=pick.map(([n,sel])=>{const e=document.querySelector(sel); if(!e) return n+' MISSING';
+    const r=e.getBoundingClientRect();
+    return n+' y='+Math.round(r.top-top)+' h='+Math.round(r.height)+' w='+Math.round(r.width);}).join(' | ');
+  const pre=document.createElement('pre'); pre.id='measure'; pre.textContent=out; document.body.appendChild(pre);
+}, 400);
+/* ?raw=1 strips the device chrome so a screen can be diffed 1:1 against its frame. */
+if(q.get('raw')){ document.body.style.cssText='margin:0;padding:0;background:#F1EDF7;display:block';
+  document.querySelector('.panel').style.display='none';
+  const dv=document.querySelector('.device'); dv.style.cssText='width:360px;height:1025px;padding:0;border-radius:0;box-shadow:none';
+  const sc=document.getElementById('screen'); sc.style.cssText='width:360px;height:1025px;border-radius:0;position:relative;overflow:visible';
+  const cv=sc.querySelector('.canvas'); if(cv) cv.style.position='relative';
+  const sr=sc.querySelector('.scroll'); if(sr) sr.style.overflow='visible'; }
+</script>
+</body>
+</html>
