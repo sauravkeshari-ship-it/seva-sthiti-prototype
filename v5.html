@@ -1103,9 +1103,9 @@ function impactHTML(){
   return `<div>
     <div class="sec-head"><span class="t">इसका असर</span></div>
     <div class="card pad imp" style="margin-top:12px">${I.rows.map(([l,v,tone],i)=>
-      `<div class="irow" ${i===1?'data-go="net" style="cursor:pointer"':''}>
+      `<div class="irow" ${i===1?'data-go="bonus" style="cursor:pointer"':''}>
         <span class="il">${esc(l)}</span><span class="iv ${tone}">${esc(v)}</span>
-        ${i===1?`<span class="ic go">${D.ICONS.keyboard_arrow_down}</span>`:''}
+        <span class="ic go">${D.ICONS.keyboard_arrow_down}</span>
       </div>`).join('')}</div>
   </div>`;
 }
