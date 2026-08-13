@@ -1636,7 +1636,7 @@ function wire(){
    720px, so the same cases live behind the bug icon in the top bar. */
 const SEGS = [
   ['Screen', 'v', ()=>[['app','App home'],['biz','मेरा बिज़नेस'],['net','मेरा नेटवर्क'],['earn','कमाई'],
-      ['home','Quality OS'],['work','नया काम']], ()=>st.view],
+      ['home','Quality OS']], ()=>st.view],
   ['Home · state', 'h', ()=>[['atrisk',0],['compliant',0],['noncompliant',0]]
       .map(([k])=>[k, D.HOMES[k].label]), ()=>st.home],
 ];
@@ -1664,7 +1664,7 @@ function paintPanel(){
   }
   const segV = document.getElementById('segView');
   if(segV){
-    segV.innerHTML = [['app','App home'],['biz','मेरा बिज़नेस'],['net','मेरा नेटवर्क'],['earn','कमाई'],['home','Quality OS'],['work','नया काम'],].map(([k,l])=>
+    segV.innerHTML = [['app','App home'],['biz','मेरा बिज़नेस'],['net','मेरा नेटवर्क'],['earn','कमाई'],['home','Quality OS'],].map(([k,l])=>
       `<button data-v="${k}" class="${st.view===k?'on':''}">${l}</button>`).join('');
     segV.querySelectorAll('button').forEach(b=>b.onclick=()=>{
       st.view=b.dataset.v; st.metric=null; paint(); });
