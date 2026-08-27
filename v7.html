@@ -658,6 +658,12 @@ body{font-family:"Noto Sans Devanagari","Noto Sans",system-ui,sans-serif;backgro
 .prow .pn span{font:400 11px/15px "Noto Sans Devanagari";color:var(--hint)}
 .prow .pn.row{flex-direction:row;align-items:center;gap:6px}
 .prow .pcol{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex:0 0 auto}
+.prow .pline{display:flex;align-items:center;gap:8px}
+/* Network rows can carry a target line under the value. Top-aligning keeps the
+   name, chip, value and chevron on the first line instead of centring them
+   against the taller two-line block. */
+.prow.pnet{align-items:flex-start}
+.prow.pnet .pn.row{min-height:20px}
 .prow .ptgt{font:400 11px/15px "Noto Sans Devanagari";color:var(--hint);white-space:nowrap}
 .prow .pval{font:700 14px/20px "Noto Sans";color:var(--ink)}
 .prow .go{width:20px;height:20px;color:var(--nonaction);transform:rotate(-90deg);flex:0 0 auto}
@@ -769,6 +775,12 @@ body{font-family:"Noto Sans Devanagari","Noto Sans",system-ui,sans-serif;backgro
 .tt td{background:var(--surface);font:400 13px/18px "Noto Sans Devanagari";color:var(--ink);
   padding:11px 8px;border-top:1px solid var(--muted)}
 .tt tr.cur td{background:#F6FDFA}
+/* In the नेटवर्क की कैटेगरी card the table IS the card: it drops its own
+   border, radius and filled header band, and the cells carry the inset so the
+   dividers run edge to edge instead of floating in a box inside a box. */
+.ncflat .tt{border:0;border-radius:0}
+.ncflat .tt th{background:transparent;padding:14px 16px 12px}
+.ncflat .tt td{background:transparent;padding:14px 16px}
 .tpill{display:inline-block;border-radius:var(--rp);padding:3px 9px;font:600 12px/16px "Noto Sans Devanagari"}
 .tpill.pos{background:var(--pillOk);color:var(--pos)}
 .tpill.info{background:#F1E5FF;color:#6D17CE}
@@ -1007,11 +1019,11 @@ const G = {
   const HERO = {'बेसिक':'crit','अच्छा':'warn','बहुत अच्छा':'ok'}[low];
 
   // Target only shows while there is headroom left; at बहुत अच्छा there is none.
-  const health = P.map(p=>`<div class="prow" data-metric="${p.k}" data-tone="pos">
+  const health = P.map(p=>`<div class="prow pnet" data-metric="${p.k}" data-tone="pos">
       <span class="pn row"><b>${esc(p.name)}</b>${qmark(p.k)}</span>
-      <span class="badge ${p.tone}">${esc(p.cat)}</span>
-      <span class="pcol"><span class="pval">${esc(p.v)}</span>
-        ${p.cat!=='बहुत अच्छा'?`<span class="ptgt">लक्ष्य ${esc(String(p.th).split(': ').pop())}</span>`:''}</span>
+      <span class="pcol">
+        <span class="pline"><span class="badge ${p.tone}">${esc(p.cat)}</span><span class="pval">${esc(p.v)}</span></span>
+        ${p.cat!=='बहुत अच्छा'?`<span class="ptgt">लक्ष्य ${esc(String(p.th).split(': ').pop().replace(/\s*से अधिक\s*$/,''))}</span>`:''}</span>
       <span class="ic go">${D.ICONS.keyboard_arrow_down}</span>
     </div>`).join('');
 
@@ -1031,9 +1043,7 @@ const G = {
 
       <div>
         <div class="sec-head"><span class="t">नेटवर्क की कैटेगरी</span></div>
-        <div class="card" style="margin-top:12px">
-          <div class="ncbody" style="padding-top:16px">${payTableHTML(S, false, false)}</div>
-        </div>
+        <div class="card ncflat" style="margin-top:12px;overflow:hidden">${payTableHTML(S, false, false)}</div>
       </div>
 
       <div class="card pad note">
